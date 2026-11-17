@@ -1,0 +1,47 @@
+name: Sync upstream develop
+
+on:
+  schedule:
+    # Nominally every 72 hours, with a shorter gap at month boundaries.
+    - cron: "17 3 */3 * *"
+  workflow_dispatch:
+
+concurrency:
+  group: sync-upstream-develop
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Fast-forward upstream-develop
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Read upstream develop SHA
+        id: upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha="$(gh api repos/frappe/erpnext/branches/develop --jq '.commit.sha')"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Update fork branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_SHA: ${{ steps.upstream.outputs.sha }}
+        run: |
+          set -euo pipefail
+          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/branches/upstream-develop" --jq '.commit.sha')"
+          if [ "$current_sha" = "$UPSTREAM_SHA" ]; then
+            echo "upstream-develop is already current"
+            exit 0
+          fi
+
+          updated_sha="$(gh api --method PATCH \
+            "repos/$GITHUB_REPOSITORY/git/refs/heads/upstream-develop" \
+            --field "sha=$UPSTREAM_SHA" \
+            --field force=false \
+            --jq '.object.sha')"
+          test "$updated_sha" = "$UPSTREAM_SHA"
+          echo "upstream-develop advanced to $updated_sha"
