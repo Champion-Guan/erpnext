@@ -2,8 +2,8 @@ name: Sync upstream develop
 
 on:
   schedule:
-    # Nominally every 72 hours, with a shorter gap at month boundaries.
-    - cron: "17 3 */3 * *"
+    # Every three days at 00:00 UTC (08:00 Beijing time).
+    - cron: "0 0 */3 * *"
   workflow_dispatch:
 
 concurrency:
